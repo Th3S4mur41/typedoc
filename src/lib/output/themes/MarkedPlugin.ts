@@ -2,18 +2,18 @@ import * as fs from "fs";
 import * as Path from "path";
 import * as Marked from "marked";
 
-import { Component, ContextAwareRendererComponent } from "../components";
+import { ContextAwareRendererComponent } from "../components";
 import { RendererEvent, MarkdownEvent, PageEvent } from "../events";
 import { BindOption, readFile, copySync, isFile } from "../../utils";
 import { highlight, isSupportedLanguage } from "../../utils/highlighter";
 import type { Theme } from "shiki";
 import { escapeHtml, getTextContent } from "../../utils/html";
+import type { Renderer } from "..";
 
 /**
  * Implements markdown and relativeURL helpers for templates.
  * @internal
  */
-@Component({ name: "marked" })
 export class MarkedPlugin extends ContextAwareRendererComponent {
     @BindOption("includes")
     includeSource!: string;
@@ -50,12 +50,9 @@ export class MarkedPlugin extends ContextAwareRendererComponent {
     private sources?: { fileName: string; line: number }[];
     private outputFileName?: string;
 
-    /**
-     * Create a new MarkedPlugin instance.
-     */
-    override initialize() {
-        super.initialize();
-        this.listenTo(this.owner, MarkdownEvent.PARSE, this.onParseMarkdown);
+    constructor(renderer: Renderer) {
+        super(renderer);
+        renderer.on(MarkdownEvent.PARSE, this.onParseMarkdown.bind(this));
     }
 
     /**
@@ -123,9 +120,9 @@ output file :
             );
         }
 
-        const event = new MarkdownEvent(MarkdownEvent.PARSE, page, text, text);
+        const event = new MarkdownEvent(page, text, text);
 
-        this.owner.trigger(event);
+        this.owner.emit(MarkdownEvent.PARSE, event);
         return event.parsedText;
     }
 

@@ -1,21 +1,14 @@
 import * as Path from "path";
 
-import { Component, AbstractComponent } from "../utils/component";
-import type {
-    ProjectReflection,
-    Reflection,
-} from "../models/reflections/index";
-import type { Renderer } from "./renderer";
+import { ProjectReflection, Reflection } from "../models/reflections/index";
 import { RendererEvent, PageEvent } from "./events";
-
-export { Component };
-
-export abstract class RendererComponent extends AbstractComponent<Renderer> {}
+import type { Renderer } from ".";
+import { Component } from "../utils";
 
 /**
  * A plugin for the renderer that reads the current render context.
  */
-export abstract class ContextAwareRendererComponent extends RendererComponent {
+export abstract class ContextAwareRendererComponent extends Component<Renderer> {
     /**
      * The project that is currently processed.
      */
@@ -42,11 +35,10 @@ export abstract class ContextAwareRendererComponent extends RendererComponent {
      *
      * @param renderer  The renderer this plugin should be attached to.
      */
-    protected override initialize() {
-        this.listenTo(this.owner, {
-            [RendererEvent.BEGIN]: this.onBeginRenderer,
-            [PageEvent.BEGIN]: this.onBeginPage,
-        });
+    constructor(renderer: Renderer) {
+        super(renderer);
+        renderer.on(RendererEvent.BEGIN, this.onBeginRenderer.bind(this));
+        renderer.on(PageEvent.BEGIN, this.onBeginPage.bind(this));
     }
 
     /**
@@ -84,8 +76,10 @@ export abstract class ContextAwareRendererComponent extends RendererComponent {
      *
      * @param page  An event object describing the current render operation.
      */
-    protected onBeginPage(page: PageEvent<Reflection>) {
+    protected onBeginPage(page: PageEvent) {
         this.location = page.url;
-        this.page = page;
+        if (page.model instanceof Reflection) {
+            this.page = page as PageEvent<Reflection>;
+        }
     }
 }

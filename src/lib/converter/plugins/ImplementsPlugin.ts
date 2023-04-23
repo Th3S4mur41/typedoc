@@ -10,42 +10,36 @@ import {
 } from "../../models/reflections/index";
 import { ReferenceType, ReflectionType, Type } from "../../models/types";
 import { filterMap, zip } from "../../utils/array";
-import { Component, ConverterComponent } from "../components";
 import type { Context } from "../context";
-import { Converter } from "../converter";
-import { getHumanName } from "../../utils";
+import type { Converter } from "../converter";
+import { Component, getHumanName } from "../../utils";
+import { ConverterEvents } from "../converter-events";
 
 /**
  * A plugin that detects interface implementations of functions and
  * properties on classes and links them.
  */
-@Component({ name: "implements" })
-export class ImplementsPlugin extends ConverterComponent {
+export class ImplementsPlugin extends Component<Converter> {
     private resolved = new WeakSet<Reflection>();
     private postponed = new WeakMap<Reflection, Set<DeclarationReflection>>();
 
-    /**
-     * Create a new ImplementsPlugin instance.
-     */
-    override initialize() {
-        this.listenTo(
-            this.owner,
-            Converter.EVENT_RESOLVE_END,
-            this.onResolveEnd
+    constructor(converter: Converter) {
+        super(converter);
+        this.owner.on(
+            ConverterEvents.RESOLVE_END,
+            this.onResolveEnd.bind(this)
         );
-        this.listenTo(
-            this.owner,
-            Converter.EVENT_CREATE_DECLARATION,
-            this.onDeclaration,
+        this.owner.on(
+            ConverterEvents.CREATE_DECLARATION,
+            this.onDeclaration.bind(this),
             -1000
         );
-        this.listenTo(
-            this.owner,
-            Converter.EVENT_CREATE_SIGNATURE,
-            this.onSignature,
+        this.owner.on(
+            ConverterEvents.CREATE_SIGNATURE,
+            this.onSignature.bind(this),
             1000
         );
-        this.listenTo(this.application, ApplicationEvents.REVIVE, this.resolve);
+        this.application.on(ApplicationEvents.REVIVE, this.resolve.bind(this));
     }
 
     /**

@@ -228,7 +228,11 @@ const constructorConverter: TypeConverter<ts.ConstructorTypeNode, ts.Type> = {
         rc.convertingTypeNode = true;
 
         context.registerReflection(reflection, symbol);
-        context.trigger(ConverterEvents.CREATE_DECLARATION, reflection);
+        context.converter.emit(
+            ConverterEvents.CREATE_DECLARATION,
+            context,
+            reflection
+        );
 
         const signature = new SignatureReflection(
             "__type",
@@ -277,7 +281,11 @@ const constructorConverter: TypeConverter<ts.ConstructorTypeNode, ts.Type> = {
             context.scope
         );
         context.registerReflection(reflection, type.symbol);
-        context.trigger(ConverterEvents.CREATE_DECLARATION, reflection);
+        context.converter.emit(
+            ConverterEvents.CREATE_DECLARATION,
+            context,
+            reflection
+        );
 
         createSignature(
             context.withScope(reflection),
@@ -333,7 +341,11 @@ const functionTypeConverter: TypeConverter<ts.FunctionTypeNode, ts.Type> = {
         const rc = context.withScope(reflection);
 
         context.registerReflection(reflection, symbol);
-        context.trigger(ConverterEvents.CREATE_DECLARATION, reflection);
+        context.converter.emit(
+            ConverterEvents.CREATE_DECLARATION,
+            context,
+            reflection
+        );
 
         const signature = new SignatureReflection(
             "__type",
@@ -372,7 +384,11 @@ const functionTypeConverter: TypeConverter<ts.FunctionTypeNode, ts.Type> = {
             context.scope
         );
         context.registerReflection(reflection, type.symbol);
-        context.trigger(ConverterEvents.CREATE_DECLARATION, reflection);
+        context.converter.emit(
+            ConverterEvents.CREATE_DECLARATION,
+            context,
+            reflection
+        );
 
         createSignature(
             context.withScope(reflection),
@@ -560,7 +576,11 @@ const typeLiteralConverter: TypeConverter<ts.TypeLiteralNode> = {
         rc.convertingTypeNode = true;
 
         context.registerReflection(reflection, symbol);
-        context.trigger(ConverterEvents.CREATE_DECLARATION, reflection);
+        context.converter.emit(
+            ConverterEvents.CREATE_DECLARATION,
+            context,
+            reflection
+        );
 
         for (const prop of context.checker.getPropertiesOfType(type)) {
             convertSymbol(rc, prop);
@@ -597,7 +617,11 @@ const typeLiteralConverter: TypeConverter<ts.TypeLiteralNode> = {
             context.scope
         );
         context.registerReflection(reflection, type.symbol);
-        context.trigger(ConverterEvents.CREATE_DECLARATION, reflection);
+        context.converter.emit(
+            ConverterEvents.CREATE_DECLARATION,
+            context,
+            reflection
+        );
 
         for (const prop of context.checker.getPropertiesOfType(type)) {
             convertSymbol(context.withScope(reflection), prop);

@@ -212,7 +212,7 @@ export class Context {
     }
 
     finalizeDeclarationReflection(reflection: DeclarationReflection) {
-        this.converter.trigger(
+        this.converter.emit(
             ConverterEvents.CREATE_DECLARATION,
             this,
             reflection
@@ -239,19 +239,6 @@ export class Context {
      */
     registerReflection(reflection: Reflection, symbol: ts.Symbol | undefined) {
         this.project.registerReflection(reflection, symbol);
-    }
-
-    /**
-     * Trigger a node reflection event.
-     *
-     * All events are dispatched on the current converter instance.
-     *
-     * @param name  The name of the event that should be triggered.
-     * @param reflection  The triggering reflection.
-     * @param node  The triggering TypeScript node if available.
-     */
-    trigger(name: string, reflection: Reflection, node?: ts.Node) {
-        this.converter.trigger(name, this, reflection, node);
     }
 
     /** @internal */

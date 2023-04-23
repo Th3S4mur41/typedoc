@@ -1,9 +1,13 @@
 import * as Path from "path";
 
-import { Component, ConverterComponent } from "../components";
-import { Converter } from "../converter";
+import type { Converter } from "../converter";
 import type { Context } from "../context";
-import { BindOption, EntryPointStrategy, readFile } from "../../utils";
+import {
+    BindOption,
+    Component,
+    EntryPointStrategy,
+    readFile,
+} from "../../utils";
 import {
     deriveRootDir,
     discoverInParentDir,
@@ -14,13 +18,13 @@ import { MinimalSourceFile } from "../../utils/minimalSourceFile";
 import type { ProjectReflection } from "../../models/index";
 import { ApplicationEvents } from "../../application-events";
 import { join } from "path";
+import { ConverterEvents } from "../converter-events";
 
 /**
  * A handler that tries to find the package.json and readme.md files of the
  * current project.
  */
-@Component({ name: "package" })
-export class PackagePlugin extends ConverterComponent {
+export class PackagePlugin extends Component<Converter> {
     @BindOption("readme")
     readme!: string;
 
@@ -48,19 +52,19 @@ export class PackagePlugin extends ConverterComponent {
      */
     private packageJson?: { name: string; version?: string };
 
-    override initialize() {
-        this.listenTo(this.owner, {
-            [Converter.EVENT_BEGIN]: this.onBegin,
-            [Converter.EVENT_RESOLVE_BEGIN]: this.onBeginResolve,
-            [Converter.EVENT_END]: () => {
-                delete this.readmeFile;
-                delete this.readmeContents;
-                delete this.packageJson;
-            },
+    constructor(converter: Converter) {
+        super(converter);
+        converter.on(ConverterEvents.BEGIN, this.onBegin.bind(this));
+        converter.on(
+            ConverterEvents.RESOLVE_BEGIN,
+            this.onBeginResolve.bind(this)
+        );
+        converter.on(ConverterEvents.END, () => {
+            delete this.readmeFile;
+            delete this.readmeContents;
+            delete this.packageJson;
         });
-        this.listenTo(this.application, {
-            [ApplicationEvents.REVIVE]: this.onRevive,
-        });
+        this.application.on(ApplicationEvents.REVIVE, this.onRevive.bind(this));
     }
 
     private onRevive(project: ProjectReflection) {

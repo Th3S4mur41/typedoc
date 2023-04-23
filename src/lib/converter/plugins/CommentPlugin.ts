@@ -1,5 +1,4 @@
-import { Component, ConverterComponent } from "../components";
-import { Converter } from "../converter";
+import type { Converter } from "../converter";
 import type { Context } from "../context";
 import {
     Reflection,
@@ -21,7 +20,9 @@ import {
     removeIfPresent,
     unique,
     partition,
+    Component,
 } from "../../utils";
+import { ConverterEvents } from "../converter-events";
 
 /**
  * These tags are not useful to display in the generated documentation.
@@ -101,8 +102,7 @@ const NEVER_RENDERED = [
  * - Resolve `@link` tags to point to target reflections
  *
  */
-@Component({ name: "comment" })
-export class CommentPlugin extends ConverterComponent {
+export class CommentPlugin extends Component<Converter> {
     @BindOption("excludeTags")
     excludeTags!: `@${string}`[];
 
@@ -126,19 +126,27 @@ export class CommentPlugin extends ConverterComponent {
         return this._excludeKinds;
     }
 
-    /**
-     * Create a new CommentPlugin instance.
-     */
-    override initialize() {
-        this.listenTo(this.owner, {
-            [Converter.EVENT_CREATE_DECLARATION]: this.onDeclaration,
-            [Converter.EVENT_CREATE_SIGNATURE]: this.onDeclaration,
-            [Converter.EVENT_CREATE_TYPE_PARAMETER]: this.onCreateTypeParameter,
-            [Converter.EVENT_RESOLVE_BEGIN]: this.onBeginResolve,
-            [Converter.EVENT_RESOLVE]: this.onResolve,
-            [Converter.EVENT_END]: () => {
-                this._excludeKinds = undefined;
-            },
+    constructor(converter: Converter) {
+        super(converter);
+        this.owner.on(
+            ConverterEvents.CREATE_DECLARATION,
+            this.onDeclaration.bind(this)
+        );
+        this.owner.on(
+            ConverterEvents.CREATE_SIGNATURE,
+            this.onDeclaration.bind(this)
+        );
+        this.owner.on(
+            ConverterEvents.CREATE_TYPE_PARAMETER,
+            this.onCreateTypeParameter.bind(this)
+        );
+        this.owner.on(
+            ConverterEvents.RESOLVE_BEGIN,
+            this.onBeginResolve.bind(this)
+        );
+        this.owner.on(ConverterEvents.RESOLVE, this.onResolve.bind(this));
+        this.owner.on(ConverterEvents.END, () => {
+            this._excludeKinds = undefined;
         });
     }
 

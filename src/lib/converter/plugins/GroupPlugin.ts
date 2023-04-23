@@ -5,20 +5,19 @@ import {
     DeclarationReflection,
 } from "../../models/reflections/index";
 import { ReflectionGroup } from "../../models/ReflectionGroup";
-import { Component, ConverterComponent } from "../components";
-import { Converter } from "../converter";
+import type { Converter } from "../converter";
 import type { Context } from "../context";
 import { getSortFunction } from "../../utils/sort";
-import { BindOption, removeIf } from "../../utils";
+import { BindOption, Component, removeIf } from "../../utils";
 import { Comment } from "../../models";
+import { ConverterEvents } from "../converter-events";
 
 /**
  * A handler that sorts and groups the found reflections in the resolving phase.
  *
  * The handler sets the `groups` property of all container reflections.
  */
-@Component({ name: "group" })
-export class GroupPlugin extends ConverterComponent {
+export class GroupPlugin extends Component<Converter> {
     sortFunction!: (reflections: DeclarationReflection[]) => void;
 
     @BindOption("searchGroupBoosts")
@@ -31,18 +30,18 @@ export class GroupPlugin extends ConverterComponent {
 
     static WEIGHTS: string[] = [];
 
-    /**
-     * Create a new GroupPlugin instance.
-     */
-    override initialize() {
-        this.listenTo(this.owner, {
-            [Converter.EVENT_RESOLVE_BEGIN]: () => {
-                this.sortFunction = getSortFunction(this.application.options);
-                GroupPlugin.WEIGHTS = this.groupOrder;
-            },
-            [Converter.EVENT_RESOLVE]: this.onResolve,
-            [Converter.EVENT_RESOLVE_END]: this.onEndResolve,
+    constructor(converter: Converter) {
+        super(converter);
+        this.owner.on(ConverterEvents.RESOLVE_BEGIN, () => {
+            this.sortFunction = getSortFunction(this.application.options);
+            GroupPlugin.WEIGHTS = this.groupOrder;
         });
+
+        this.owner.on(ConverterEvents.RESOLVE, this.onResolve.bind(this));
+        this.owner.on(
+            ConverterEvents.RESOLVE_END,
+            this.onEndResolve.bind(this)
+        );
     }
 
     /**

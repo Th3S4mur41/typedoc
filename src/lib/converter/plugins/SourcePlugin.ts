@@ -4,21 +4,25 @@ import {
     DeclarationReflection,
     SignatureReflection,
 } from "../../models/reflections/index";
-import { Component, ConverterComponent } from "../components";
-import { Converter } from "../converter";
+import type { Converter } from "../converter";
 import type { Context } from "../context";
-import { BindOption, normalizePath, getCommonDirectory } from "../../utils";
+import {
+    BindOption,
+    normalizePath,
+    getCommonDirectory,
+    Component,
+} from "../../utils";
 import { isNamedNode } from "../utils/nodes";
 import { dirname, relative } from "path";
 import { SourceReference } from "../../models";
 import { gitIsInstalled, Repository } from "../utils/repository";
 import { BasePath } from "../utils/base-path";
+import { ConverterEvents } from "../converter-events";
 
 /**
  * A handler that attaches source file information to reflections.
  */
-@Component({ name: "source" })
-export class SourcePlugin extends ConverterComponent {
+export class SourcePlugin extends Component<Converter> {
     @BindOption("disableSources")
     readonly disableSources!: boolean;
 
@@ -52,13 +56,21 @@ export class SourcePlugin extends ConverterComponent {
     /**
      * Create a new SourceHandler instance.
      */
-    override initialize() {
-        this.listenTo(this.owner, {
-            [Converter.EVENT_END]: this.onEnd,
-            [Converter.EVENT_CREATE_DECLARATION]: this.onDeclaration,
-            [Converter.EVENT_CREATE_SIGNATURE]: this.onSignature,
-            [Converter.EVENT_RESOLVE_BEGIN]: this.onBeginResolve,
-        });
+    constructor(converter: Converter) {
+        super(converter);
+        converter.on(ConverterEvents.END, this.onEnd.bind(this));
+        converter.on(
+            ConverterEvents.CREATE_DECLARATION,
+            this.onDeclaration.bind(this)
+        );
+        converter.on(
+            ConverterEvents.CREATE_SIGNATURE,
+            this.onSignature.bind(this)
+        );
+        converter.on(
+            ConverterEvents.RESOLVE_BEGIN,
+            this.onBeginResolve.bind(this)
+        );
     }
 
     private onEnd() {

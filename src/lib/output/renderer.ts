@@ -11,13 +11,12 @@ import * as path from "path";
 
 import type { Application } from "../application";
 import type { Theme } from "./theme";
-import { RendererEvent, PageEvent, IndexEvent } from "./events";
+import { RendererEvent, PageEvent, IndexEvent, MarkdownEvent } from "./events";
 import type { ProjectReflection } from "../models/reflections/project";
 import type { RenderTemplate, UrlMapping } from "./models/UrlMapping";
 import { writeFileSync } from "../utils/fs";
 import { DefaultTheme } from "./themes/default/DefaultTheme";
-import { RendererComponent } from "./components";
-import { Component, ChildableComponent } from "../utils/component";
+import { Component } from "../utils/component";
 import { BindOption, EventHooks } from "../utils";
 import { loadHighlighter } from "../utils/highlighter";
 import type { Theme as ShikiTheme } from "shiki";
@@ -26,6 +25,7 @@ import type { JsxElement } from "../utils/jsx.elements";
 import type { DefaultThemeRenderContext } from "./themes/default/DefaultThemeRenderContext";
 import { clearSeenIconCache } from "./themes/default/partials/icon";
 import { validateStateIsClean } from "./themes/default/partials/type";
+import { AssetsPlugin, JavascriptIndexPlugin, MarkedPlugin } from "./plugins";
 
 /**
  * Describes the hooks available to inject output in the default theme.
@@ -83,6 +83,15 @@ export interface RendererHooks {
     "pageSidebar.end": [DefaultThemeRenderContext];
 }
 
+export interface RendererEvents {
+    beginPage: [PageEvent];
+    endPage: [PageEvent];
+    beginRender: [RendererEvent];
+    endRender: [RendererEvent];
+    prepareIndex: [IndexEvent];
+    parseMarkdown: [MarkdownEvent];
+}
+
 /**
  * The renderer processes a {@link ProjectReflection} using a {@link Theme} instance and writes
  * the emitted html documents to a output directory. You can specify which theme should be used
@@ -94,18 +103,15 @@ export interface RendererHooks {
  *
  *  * {@link Renderer.EVENT_BEGIN}<br>
  *    Triggered before the renderer starts rendering a project. The listener receives
- *    an instance of {@link RendererEvent}. By calling {@link RendererEvent.preventDefault} the entire
- *    render process can be canceled.
+ *    an instance of {@link RendererEvent}.
  *
  *    * {@link Renderer.EVENT_BEGIN_PAGE}<br>
  *      Triggered before a document will be rendered. The listener receives an instance of
- *      {@link PageEvent}. By calling {@link PageEvent.preventDefault} the generation of the
- *      document can be canceled.
+ *      {@link PageEvent}.
  *
  *    * {@link Renderer.EVENT_END_PAGE}<br>
  *      Triggered after a document has been rendered, just before it is written to disc. The
- *      listener receives an instance of {@link PageEvent}. When calling
- *      {@link PageEvent.preventDefault} the the document will not be saved to disc.
+ *      listener receives an instance of {@link PageEvent}.
  *
  *  * {@link Renderer.EVENT_END}<br>
  *    Triggered after the renderer has written all documents. The listener receives
@@ -115,11 +121,7 @@ export interface RendererHooks {
  *    Triggered when the JavascriptIndexPlugin is preparing the search index. Listeners receive
  *    an instance of {@link IndexEvent}.
  */
-@Component({ name: "renderer", internal: true, childClass: RendererComponent })
-export class Renderer extends ChildableComponent<
-    Application,
-    RendererComponent
-> {
+export class Renderer extends Component<Application, RendererEvents> {
     private themes = new Map<string, new (renderer: Renderer) => Theme>([
         ["default", DefaultTheme],
     ]);
@@ -135,6 +137,9 @@ export class Renderer extends ChildableComponent<
 
     /** @event */
     static readonly EVENT_PREPARE_INDEX = IndexEvent.PREPARE_INDEX;
+
+    /** @internal */
+    markedPlugin = new MarkedPlugin(this);
 
     /**
      * A list of async jobs which must be completed *before* rendering output.
@@ -203,6 +208,12 @@ export class Renderer extends ChildableComponent<
 
     renderStartTime = -1;
 
+    constructor(owner: Application) {
+        super(owner);
+        new AssetsPlugin(this);
+        new JavascriptIndexPlugin(this);
+    }
+
     /**
      * Define a new theme that can be used to render output.
      * This API will likely be changing at some point, to allow more easily overriding parts of the theme without
@@ -242,35 +253,27 @@ export class Renderer extends ChildableComponent<
             return;
         }
 
-        const output = new RendererEvent(
-            RendererEvent.BEGIN,
-            outputDirectory,
-            project
-        );
+        const output = new RendererEvent(outputDirectory, project);
         output.urls = this.theme!.getUrls(project);
 
-        this.trigger(output);
+        this.emit(RendererEvent.BEGIN, output);
 
         await Promise.all(this.preRenderAsyncJobs.map((job) => job(output)));
         this.preRenderAsyncJobs = [];
 
-        if (!output.isDefaultPrevented) {
-            this.application.logger.verbose(
-                `There are ${output.urls.length} pages to write.`
-            );
-            output.urls.forEach((mapping: UrlMapping) => {
-                clearSeenIconCache();
-                this.renderDocument(...output.createPageEvent(mapping));
-                validateStateIsClean(mapping.url);
-            });
+        this.application.logger.verbose(
+            `There are ${output.urls.length} pages to write.`
+        );
+        output.urls.forEach((mapping: UrlMapping) => {
+            clearSeenIconCache();
+            this.renderDocument(...output.createPageEvent(mapping));
+            validateStateIsClean(mapping.url);
+        });
 
-            await Promise.all(
-                this.postRenderAsyncJobs.map((job) => job(output))
-            );
-            this.postRenderAsyncJobs = [];
+        await Promise.all(this.postRenderAsyncJobs.map((job) => job(output)));
+        this.postRenderAsyncJobs = [];
 
-            this.trigger(RendererEvent.END, output);
-        }
+        this.emit(RendererEvent.END, output);
 
         this.theme = void 0;
         this.hooks.restoreMomento(momento);
@@ -287,11 +290,7 @@ export class Renderer extends ChildableComponent<
         page: PageEvent<Reflection>
     ) {
         const momento = this.hooks.saveMomento();
-        this.trigger(PageEvent.BEGIN, page);
-        if (page.isDefaultPrevented) {
-            this.hooks.restoreMomento(momento);
-            return false;
-        }
+        this.emit(PageEvent.BEGIN, page);
 
         if (page.model instanceof Reflection) {
             page.contents = this.theme!.render(page, template);
@@ -299,12 +298,8 @@ export class Renderer extends ChildableComponent<
             throw new Error("Should be unreachable");
         }
 
-        this.trigger(PageEvent.END, page);
+        this.emit(PageEvent.END, page);
         this.hooks.restoreMomento(momento);
-
-        if (page.isDefaultPrevented) {
-            return false;
-        }
 
         try {
             writeFileSync(page.filename, page.contents);
@@ -395,7 +390,3 @@ export class Renderer extends ChildableComponent<
         return true;
     }
 }
-
-// HACK: THIS HAS TO STAY DOWN HERE
-// if you try to move it up to the top of the file, then you'll run into stuff being used before it has been defined.
-import "./plugins";

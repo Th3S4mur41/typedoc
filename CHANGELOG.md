@@ -1,3 +1,11 @@
+# Beta
+
+### API Breaking Changes
+
+-   Heavily refactored the "Component" structure that TypeDoc is based on to provided typed events.
+    This resulted in several component related methods being removed from Application, Converter, etc.
+-   `Converter.EVENT_CREATE_DECLARATION` will no longer sometimes be emitted for the root level `ProjectReflection`
+
 # Unreleased
 
 ### Features

@@ -41,7 +41,7 @@ export class EventHooks<T extends Record<keyof T, unknown[]>, R> {
      */
     on<K extends keyof T>(
         event: K,
-        listener: (...args: T[K]) => R,
+        listener: (this: never, ...args: T[K]) => R,
         order = 0
     ): void {
         const list = (this._listeners.get(event) || []).slice();
@@ -57,7 +57,7 @@ export class EventHooks<T extends Record<keyof T, unknown[]>, R> {
      */
     once<K extends keyof T>(
         event: K,
-        listener: (...args: T[K]) => R,
+        listener: (this: undefined, ...args: T[K]) => R,
         order = 0
     ): void {
         const list = (this._listeners.get(event) || []).slice();

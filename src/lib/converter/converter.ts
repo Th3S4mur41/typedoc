@@ -4,15 +4,18 @@ import type { Application } from "../application";
 import {
     Comment,
     CommentDisplayPart,
+    DeclarationReflection,
+    ParameterReflection,
     ProjectReflection,
     Reflection,
     ReflectionKind,
     ReflectionSymbolId,
+    SignatureReflection,
     SomeType,
+    TypeParameterReflection,
 } from "../models/index";
 import { Context } from "./context";
-import { ConverterComponent } from "./components";
-import { Component, ChildableComponent } from "../utils/component";
+import { Component } from "../utils/component";
 import { BindOption, MinimalSourceFile, readFile } from "../utils";
 import { convertType } from "./types";
 import { ConverterEvents } from "./converter-events";
@@ -35,19 +38,43 @@ import {
     ExternalResolveResult,
 } from "./comments/linkResolver";
 import type { DeclarationReference } from "./comments/declarationReference";
+import {
+    CategoryPlugin,
+    CommentPlugin,
+    GroupPlugin,
+    ImplementsPlugin,
+    InheritDocPlugin,
+    LinkResolverPlugin,
+    PackagePlugin,
+    SourcePlugin,
+    TypePlugin,
+} from "./plugins";
+
+export interface ConverterEvents {
+    begin: [Context];
+    end: [Context];
+    createDeclaration: [Context, DeclarationReflection];
+    createSignature: [
+        Context,
+        SignatureReflection,
+        (ts.SignatureDeclaration | ts.JSDocSignature)?,
+        ts.Signature?
+    ];
+    createParameter: [Context, ParameterReflection];
+    createTypeParameter: [
+        Context,
+        TypeParameterReflection,
+        ts.TypeParameterDeclaration?
+    ];
+    resolveBegin: [Context];
+    resolveReflection: [Context, Reflection];
+    resolveEnd: [Context];
+}
 
 /**
  * Compiles source files using TypeScript and converts compiler symbols to reflections.
  */
-@Component({
-    name: "converter",
-    internal: true,
-    childClass: ConverterComponent,
-})
-export class Converter extends ChildableComponent<
-    Application,
-    ConverterComponent
-> {
+export class Converter extends Component<Application, ConverterEvents> {
     /** @internal */
     @BindOption("externalPattern")
     externalPattern!: string[];
@@ -179,6 +206,16 @@ export class Converter extends ChildableComponent<
     constructor(owner: Application) {
         super(owner);
 
+        new CategoryPlugin(this);
+        new CommentPlugin(this);
+        new GroupPlugin(this);
+        new ImplementsPlugin(this);
+        new InheritDocPlugin(this);
+        new LinkResolverPlugin(this);
+        new PackagePlugin(this);
+        new SourcePlugin(this);
+        new TypePlugin(this);
+
         this.addUnknownSymbolResolver((ref) => {
             // Require global links, matching local ones will likely hide mistakes where the
             // user meant to link to a local type.
@@ -223,12 +260,12 @@ export class Converter extends ChildableComponent<
         );
         const context = new Context(this, programs, project);
 
-        this.trigger(Converter.EVENT_BEGIN, context);
+        this.emit(Converter.EVENT_BEGIN, context);
 
         this.compile(entryPoints, context);
         this.resolve(context);
 
-        this.trigger(Converter.EVENT_END, context);
+        this.emit(Converter.EVENT_END, context);
         this._config = undefined;
 
         return project;
@@ -371,10 +408,6 @@ export class Converter extends ChildableComponent<
             context.project.comment = symbol
                 ? context.getComment(symbol, context.project.kind)
                 : context.getFileComment(node);
-            context.trigger(
-                Converter.EVENT_CREATE_DECLARATION,
-                context.project
-            );
             moduleContext = context;
         } else {
             const reflection = context.createDeclarationReflection(
@@ -445,14 +478,14 @@ export class Converter extends ChildableComponent<
      * @returns The final project reflection.
      */
     private resolve(context: Context): void {
-        this.trigger(Converter.EVENT_RESOLVE_BEGIN, context);
+        this.emit(Converter.EVENT_RESOLVE_BEGIN, context);
         const project = context.project;
 
         for (const reflection of Object.values(project.reflections)) {
-            this.trigger(Converter.EVENT_RESOLVE, context, reflection);
+            this.emit(Converter.EVENT_RESOLVE, context, reflection);
         }
 
-        this.trigger(Converter.EVENT_RESOLVE_END, context);
+        this.emit(Converter.EVENT_RESOLVE_END, context);
     }
 
     /**

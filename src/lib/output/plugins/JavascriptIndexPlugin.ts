@@ -6,10 +6,10 @@ import {
     DeclarationReflection,
     ProjectReflection,
 } from "../../models";
-import { Component, RendererComponent } from "../components";
 import { IndexEvent, RendererEvent } from "../events";
-import { BindOption, writeFileSync } from "../../utils";
+import { Component, BindOption, writeFileSync } from "../../utils";
 import { DefaultTheme } from "../themes/default/DefaultTheme";
+import type { Renderer } from "..";
 
 /**
  * Keep this in sync with the interface in src/lib/output/themes/default/assets/typedoc/components/Search.ts
@@ -27,16 +27,13 @@ interface SearchDocument {
  *
  * The resulting javascript file can be used to build a simple search function.
  */
-@Component({ name: "javascript-index" })
-export class JavascriptIndexPlugin extends RendererComponent {
+export class JavascriptIndexPlugin extends Component<Renderer> {
     @BindOption("searchInComments")
     searchComments!: boolean;
 
-    /**
-     * Create a new JavascriptIndexPlugin instance.
-     */
-    override initialize() {
-        this.listenTo(this.owner, RendererEvent.BEGIN, this.onRendererBegin);
+    constructor(renderer: Renderer) {
+        super(renderer);
+        renderer.on(RendererEvent.BEGIN, this.onRendererBegin.bind(this));
     }
 
     /**
@@ -46,9 +43,6 @@ export class JavascriptIndexPlugin extends RendererComponent {
      */
     private onRendererBegin(event: RendererEvent) {
         if (!(this.owner.theme instanceof DefaultTheme)) {
-            return;
-        }
-        if (event.isDefaultPrevented) {
             return;
         }
 
@@ -65,16 +59,9 @@ export class JavascriptIndexPlugin extends RendererComponent {
             );
         }) as DeclarationReflection[];
 
-        const indexEvent = new IndexEvent(
-            IndexEvent.PREPARE_INDEX,
-            initialSearchResults
-        );
+        const indexEvent = new IndexEvent(initialSearchResults);
 
-        this.owner.trigger(indexEvent);
-
-        if (indexEvent.isDefaultPrevented) {
-            return;
-        }
+        this.owner.emit(IndexEvent.PREPARE_INDEX, indexEvent);
 
         const builder = new Builder();
         builder.pipeline.add(trimmer);

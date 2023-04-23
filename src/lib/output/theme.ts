@@ -1,10 +1,9 @@
 import type { Renderer } from "./renderer";
 import type { ProjectReflection } from "../models/reflections/project";
 import type { RenderTemplate, UrlMapping } from "./models/UrlMapping";
-import { RendererComponent } from "./components";
-import { Component } from "../utils/component";
 import type { PageEvent } from "./events";
 import type { Reflection } from "../models";
+import { Component } from "../utils";
 
 /**
  * Base class of all themes.
@@ -14,17 +13,7 @@ import type { Reflection } from "../models";
  * and templates to use. Additionally themes can subscribe to the events emitted by
  * {@link Renderer} to control and manipulate the output process.
  */
-@Component({ name: "theme", internal: true })
-export abstract class Theme extends RendererComponent {
-    /**
-     * Create a new BaseTheme instance.
-     *
-     * @param renderer  The renderer this theme is attached to.
-     */
-    constructor(renderer: Renderer) {
-        super(renderer);
-    }
-
+export abstract class Theme extends Component<Renderer> {
     /**
      * Map the models of the given project to the desired output files.
      * It is assumed that with the project structure:

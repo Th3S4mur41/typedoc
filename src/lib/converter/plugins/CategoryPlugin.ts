@@ -5,18 +5,17 @@ import {
     Comment,
 } from "../../models";
 import { ReflectionCategory } from "../../models";
-import { Component, ConverterComponent } from "../components";
-import { Converter } from "../converter";
 import type { Context } from "../context";
-import { BindOption, removeIf } from "../../utils";
+import { BindOption, Component, removeIf } from "../../utils";
+import { ConverterEvents } from "../converter-events";
+import type { Converter } from "../converter";
 
 /**
  * A handler that sorts and categorizes the found reflections in the resolving phase.
  *
  * The handler sets the ´category´ property of all reflections.
  */
-@Component({ name: "category" })
-export class CategoryPlugin extends ConverterComponent {
+export class CategoryPlugin extends Component<Converter> {
     @BindOption("defaultCategory")
     defaultCategory!: string;
 
@@ -38,15 +37,14 @@ export class CategoryPlugin extends ConverterComponent {
     /**
      * Create a new CategoryPlugin instance.
      */
-    override initialize() {
-        this.listenTo(
-            this.owner,
-            {
-                [Converter.EVENT_BEGIN]: this.onBegin,
-                [Converter.EVENT_RESOLVE]: this.onResolve,
-                [Converter.EVENT_RESOLVE_END]: this.onEndResolve,
-            },
-            undefined,
+    constructor(converter: Converter) {
+        super(converter);
+
+        this.owner.on(ConverterEvents.BEGIN, this.onBegin.bind(this), -200);
+        this.owner.on(ConverterEvents.RESOLVE, this.onResolve.bind(this), -200);
+        this.owner.on(
+            ConverterEvents.RESOLVE_END,
+            this.onEndResolve.bind(this),
             -200
         );
     }

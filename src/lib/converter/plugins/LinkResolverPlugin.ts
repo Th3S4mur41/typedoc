@@ -1,7 +1,10 @@
-import { Component, ConverterComponent } from "../components";
-import type { Context, ExternalResolveResult } from "../../converter";
+import type {
+    Context,
+    Converter,
+    ExternalResolveResult,
+} from "../../converter";
 import { ConverterEvents } from "../converter-events";
-import { BindOption, ValidationOptions } from "../../utils";
+import { BindOption, Component, ValidationOptions } from "../../utils";
 import { DeclarationReflection, ProjectReflection } from "../../models";
 import { discoverAllReferenceTypes } from "../../utils/reflections";
 import { ApplicationEvents } from "../../application-events";
@@ -9,18 +12,21 @@ import { ApplicationEvents } from "../../application-events";
 /**
  * A plugin that resolves `{@link Foo}` tags.
  */
-@Component({ name: "link-resolver" })
-export class LinkResolverPlugin extends ConverterComponent {
+export class LinkResolverPlugin extends Component<Converter> {
     @BindOption("validation")
     validation!: ValidationOptions;
 
-    override initialize() {
-        super.initialize();
-        this.owner.on(ConverterEvents.RESOLVE_END, this.onResolve, this, -300);
+    constructor(converter: Converter) {
+        super(converter);
+
+        this.owner.on(
+            ConverterEvents.RESOLVE_END,
+            this.onResolve.bind(this),
+            -300
+        );
         this.application.on(
             ApplicationEvents.REVIVE,
-            this.resolveLinks,
-            this,
+            this.resolveLinks.bind(this),
             -300
         );
     }

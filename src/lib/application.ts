@@ -7,11 +7,7 @@ import { Deserializer, JSONOutput, Serializer } from "./serialization";
 import type { ProjectReflection } from "./models/index";
 import { Logger, ConsoleLogger, loadPlugins, writeFile } from "./utils/index";
 
-import {
-    AbstractComponent,
-    ChildableComponent,
-    Component,
-} from "./utils/component";
+import { Component } from "./utils/component";
 import { Options, BindOption } from "./utils";
 import type { TypeDocOptions } from "./utils/options/declaration";
 import { unique } from "./utils/array";
@@ -43,6 +39,12 @@ const supportedVersionMajorMinor = packageInfo.peerDependencies.typescript
     .split("||")
     .map((version) => version.replace(/^\s*|\.x\s*$/g, ""));
 
+export interface ApplicationEvents {
+    bootstrapEnd: [Application];
+    reviveProject: [ProjectReflection];
+    validateProject: [ProjectReflection];
+}
+
 /**
  * The default TypeDoc main application class.
  *
@@ -56,11 +58,7 @@ const supportedVersionMajorMinor = packageInfo.peerDependencies.typescript
  * Both the {@link Converter} and the {@link Renderer} emit a series of events while processing the project.
  * Subscribe to these Events to control the application flow or alter the output.
  */
-@Component({ name: "application", internal: true })
-export class Application extends ChildableComponent<
-    Application,
-    AbstractComponent<Application>
-> {
+export class Application extends Component<Application, ApplicationEvents> {
     /**
      * The converter used to create the declaration reflections.
      */
@@ -108,18 +106,21 @@ export class Application extends ChildableComponent<
     /**
      * Emitted after plugins have been loaded and options have been read, but before they have been frozen.
      * The listener will be given an instance of {@link Application}.
+     * @event
      */
     static readonly EVENT_BOOTSTRAP_END = ApplicationEvents.BOOTSTRAP_END;
 
     /**
      * Emitted after a project has been deserialized from JSON.
      * The listener will be given an instance of {@link ProjectReflection}.
+     * @event
      */
     static readonly EVENT_PROJECT_REVIVE = ApplicationEvents.REVIVE;
 
     /**
      * Emitted when validation is being run.
      * The listener will be given an instance of {@link ProjectReflection}.
+     * @event
      */
     static readonly EVENT_VALIDATE_PROJECT = ApplicationEvents.VALIDATE_PROJECT;
 
@@ -131,8 +132,8 @@ export class Application extends ChildableComponent<
 
         this.logger = new ConsoleLogger();
         this.options = new Options(this.logger);
-        this.converter = this.addComponent<Converter>("converter", Converter);
-        this.renderer = this.addComponent<Renderer>("renderer", Renderer);
+        this.converter = new Converter(this);
+        this.renderer = new Renderer(this);
     }
 
     /**
@@ -168,7 +169,7 @@ export class Application extends ChildableComponent<
                 )}`
             );
         }
-        this.trigger(ApplicationEvents.BOOTSTRAP_END, this);
+        this.emit(ApplicationEvents.BOOTSTRAP_END, this);
     }
 
     private setOptions(options: Partial<TypeDocOptions>, reportErrors = true) {
@@ -458,7 +459,7 @@ export class Application extends ChildableComponent<
             validateLinks(project, this.logger);
         }
 
-        this.trigger(Application.EVENT_VALIDATE_PROJECT, project);
+        this.emit(Application.EVENT_VALIDATE_PROJECT, project);
 
         this.logger.verbose(`Validation took ${Date.now() - start}ms`);
     }
@@ -577,7 +578,7 @@ export class Application extends ChildableComponent<
             this.options.getValue("name") || "Documentation",
             projects
         );
-        this.trigger(ApplicationEvents.REVIVE, result);
+        this.emit(ApplicationEvents.REVIVE, result);
         return result;
     }
 
@@ -628,7 +629,7 @@ export class Application extends ChildableComponent<
         );
         this.logger.verbose(`Reviving projects took ${Date.now() - start}ms`);
 
-        this.trigger(ApplicationEvents.REVIVE, result);
+        this.emit(ApplicationEvents.REVIVE, result);
         return result;
     }
 }

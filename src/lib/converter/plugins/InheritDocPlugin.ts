@@ -6,15 +6,15 @@ import {
     ReflectionType,
     SignatureReflection,
 } from "../../models";
-import { Component, ConverterComponent } from "../components";
-import { Converter } from "../converter";
+import type { Converter } from "../converter";
 import type { Context } from "../context";
 import type { Reflection } from "../../models/reflections/abstract";
-import { DefaultMap } from "../../utils";
+import { Component, DefaultMap } from "../../utils";
 import { zip } from "../../utils/array";
 import { parseDeclarationReference } from "../comments/declarationReference";
 import { resolveDeclarationReference } from "../comments/declarationReferenceResolver";
 import { ApplicationEvents } from "../../application-events";
+import { ConverterEvents } from "../converter-events";
 
 /**
  * A plugin that handles `@inheritDoc` tags by copying documentation from another API item.
@@ -29,19 +29,19 @@ import { ApplicationEvents } from "../../application-events";
  * - `@typeParam` block
  * - `@return` block
  */
-@Component({ name: "inheritDoc" })
-export class InheritDocPlugin extends ConverterComponent {
+export class InheritDocPlugin extends Component<Converter> {
     // Key is depended on by Values
     private dependencies = new DefaultMap<Reflection, Reflection[]>(() => []);
 
-    /**
-     * Create a new InheritDocPlugin instance.
-     */
-    override initialize() {
-        this.owner.on(Converter.EVENT_RESOLVE_END, (context: Context) =>
+    constructor(converter: Converter) {
+        super(converter);
+        this.owner.on(ConverterEvents.RESOLVE_END, (context: Context) =>
             this.processInheritDoc(context.project)
         );
-        this.owner.on(ApplicationEvents.REVIVE, this.processInheritDoc, this);
+        this.application.on(
+            ApplicationEvents.REVIVE,
+            this.processInheritDoc.bind(this)
+        );
     }
 
     /**

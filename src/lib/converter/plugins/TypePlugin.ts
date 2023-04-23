@@ -6,30 +6,24 @@ import {
     Reflection,
 } from "../../models/reflections/index";
 import { Type, ReferenceType } from "../../models/types";
-import { Component, ConverterComponent } from "../components";
-import { Converter } from "../converter";
+import type { Converter } from "../converter";
 import type { Context } from "../context";
 import { ApplicationEvents } from "../../application-events";
+import { Component } from "../../utils";
+import { ConverterEvents } from "../converter-events";
 
 /**
  * Responsible for adding `implementedBy` / `implementedFrom`
  */
-@Component({ name: "type" })
-export class TypePlugin extends ConverterComponent {
+export class TypePlugin extends Component<Converter> {
     reflections = new Set<DeclarationReflection>();
 
-    /**
-     * Create a new TypeHandler instance.
-     */
-    override initialize() {
-        this.listenTo(this.owner, {
-            [Converter.EVENT_RESOLVE]: this.onResolve,
-            [Converter.EVENT_RESOLVE_END]: this.onResolveEnd,
-            [Converter.EVENT_END]: () => this.reflections.clear(),
-        });
-        this.listenTo(this.application, {
-            [ApplicationEvents.REVIVE]: this.onRevive,
-        });
+    constructor(converter: Converter) {
+        super(converter);
+        converter.on(ConverterEvents.RESOLVE, this.onResolve.bind(this));
+        converter.on(ConverterEvents.RESOLVE_END, this.onResolveEnd.bind(this));
+        converter.on(ConverterEvents.END, () => this.reflections.clear());
+        this.application.on(ApplicationEvents.REVIVE, this.onRevive.bind(this));
     }
 
     private onRevive(project: ProjectReflection) {
@@ -40,7 +34,7 @@ export class TypePlugin extends ConverterComponent {
         this.reflections.clear();
     }
 
-    private onResolve(context: Context, reflection: DeclarationReflection) {
+    private onResolve(context: Context, reflection: Reflection) {
         this.resolve(context.project, reflection);
     }
 
