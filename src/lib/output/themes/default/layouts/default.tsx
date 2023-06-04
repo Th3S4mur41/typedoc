@@ -30,6 +30,12 @@ export const defaultLayout = (
             )}
             <script defer src={context.relativeURL("assets/main.js", true)}></script>
             <script async src={context.relativeURL("assets/search.js", true)} id="tsd-search-script"></script>
+            <script
+                async
+                src={context.relativeURL("assets/navigation.js", true)}
+                id="tsd-navigation-script"
+                data-base={context.relativeURL("./")}
+            ></script>
             {context.hook("head.end")}
         </head>
         <body>

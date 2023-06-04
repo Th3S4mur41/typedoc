@@ -136,10 +136,7 @@ export interface TypeDocOptionMap {
     titleLink: string;
     navigationLinks: ManuallyValidatedOption<Record<string, string>>;
     sidebarLinks: ManuallyValidatedOption<Record<string, string>>;
-    navigation: {
-        includeCategories: boolean;
-        includeGroups: boolean;
-    };
+    navigation: NavigationOptions;
     visibilityFilters: ManuallyValidatedOption<{
         protected?: boolean;
         private?: boolean;
@@ -194,6 +191,11 @@ export interface TypeDocOptionMap {
  * have a validation function that checks that they are the given type.
  */
 export type ManuallyValidatedOption<T> = { __validated: T };
+
+export type NavigationOptions = {
+    includeCategories: boolean;
+    includeGroups: boolean;
+};
 
 export type ValidationOptions = {
     /**

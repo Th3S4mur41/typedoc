@@ -4,8 +4,10 @@ import { Toggle } from "./typedoc/components/Toggle";
 import { Filter } from "./typedoc/components/Filter";
 import { Accordion } from "./typedoc/components/Accordion";
 import { initTheme } from "./typedoc/Theme";
+import { initNavigation } from "./typedoc/components/Navigation";
 
 initSearch();
+initNavigation();
 
 registerComponent(Toggle, "a[data-toggle]");
 registerComponent(Accordion, ".tsd-index-accordion");
